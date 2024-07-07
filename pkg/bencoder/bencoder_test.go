@@ -65,12 +65,59 @@ func TestSimpleBencoder_Decode(t *testing.T) {
 			want:    nil,
 			wantErr: fmt.Errorf("length of string is not correct"),
 		},
+		// List decoding test cases
+		{
+			name:    "Empty List Decode",
+			args:    args{data: []byte("le")},
+			want:    []interface{}{},
+			wantErr: nil,
+		},
+		{
+			name:    "List of Integers Decode",
+			args:    args{data: []byte("li1ei2ei3ee")},
+			want:    []interface{}{int64(1), int64(2), int64(3)},
+			wantErr: nil,
+		},
+		{
+			name:    "List of Strings Decode",
+			args:    args{data: []byte("l4:spam4:eggse")},
+			want:    []interface{}{[]byte("spam"), []byte("eggs")},
+			wantErr: nil,
+		},
+		{
+			name: "Nested List Decode",
+			args: args{data: []byte("ll4:spam4:eggsei1e4:spami2ee")},
+			want: []interface{}{
+				[]interface{}{[]byte("spam"), []byte("eggs")},
+				int64(1), []byte("spam"), int64(2),
+			},
+			wantErr: nil,
+		},
+		{
+			name:    "List Decode with Invalid Format",
+			args:    args{data: []byte("l4:spam4:eggsi2e")},
+			want:    nil,
+			wantErr: fmt.Errorf("list element format invalid"),
+		},
+		{
+			name:    "List Decode with Invalid elements",
+			args:    args{data: []byte("l4:spa4:eggsi2e")},
+			want:    nil,
+			wantErr: fmt.Errorf("list element format invalid"),
+		},
+		{
+			name:    "List Decode with Invalid elements",
+			args:    args{data: []byte("l4:spammmm4:spame")},
+			want:    nil,
+			wantErr: fmt.Errorf("list element format invalid"),
+		},
+		// TODO: list with dict inside
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bencoder := NewSimpleBencoder()
 			got, err := bencoder.Decode(tt.args.data)
-			if err != nil && err.Error() != tt.wantErr.Error() {
+			if err != nil && tt.wantErr != nil && err.Error() != tt.wantErr.Error() {
 				t.Errorf("Decode() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}

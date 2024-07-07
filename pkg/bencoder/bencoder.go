@@ -18,15 +18,8 @@ func (bencoder *SimpleBencoder) Decode(data []byte) (interface{}, error) {
 		return nil, errors.New("empty data")
 	}
 
-	decodeFunc := bencoder.getDecoder(data)
+	decodeFunc := getDecoder(data)
 	return decodeFunc(data)
-}
-
-func (bencoder *SimpleBencoder) getDecoder(data []byte) func([]byte) (interface{}, error) {
-	if decodeFunc, ok := decodeFuncs[data[0]]; ok {
-		return decodeFunc
-	}
-	return decodeString
 }
 
 func (bencoder *SimpleBencoder) Encode(data interface{}) ([]byte, error) {
