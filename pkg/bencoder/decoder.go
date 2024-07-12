@@ -13,6 +13,7 @@ func getDecoder(data []byte) func([]byte) (interface{}, error) {
 	var decodeFuncs = map[byte]func([]byte) (interface{}, error){
 		'i': decodeInt,
 		'l': decodeList,
+		'd': decodeDict,
 	}
 
 	if decodeFunc, ok := decodeFuncs[data[0]]; ok {
@@ -135,4 +136,13 @@ func decodeListInner(data []byte, startIndex int) (nextIndex int, result interfa
 func decodeList(data []byte) (interface{}, error) {
 	_, result, err := decodeListInner(data, 0)
 	return result, err
+}
+
+func decodeDict(data []byte) (interface{}, error) {
+	_, result, err := decodeDictInner(data, 0)
+	return result, err
+}
+
+func decodeDictInner(data []byte, i int) (interface{}, interface{}, error) {
+
 }
