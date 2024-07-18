@@ -138,7 +138,7 @@ func TestSimpleBencoder_Decode(t *testing.T) {
 		},
 		{
 			name:    "List with Dict Decode with Unsorted Keys",
-			args:    args{data: []byte("ld3:foo4:spam3:bar4:eggsee")},
+			args:    args{data: []byte("ld3:foo4:spam3:bar4:eggs3:foo4:testee")},
 			want:    nil,
 			wantErr: fmt.Errorf("list element format invalid"),
 		},
@@ -175,19 +175,19 @@ func TestSimpleBencoder_Decode(t *testing.T) {
 		},
 		{
 			name:    "Dict Decode with repeated Keys",
-			args:    args{data: []byte("d3:foo4:spam3:bar4:eggse")},
+			args:    args{data: []byte("d3:foo4:spam3:bar4:eggs3:foo4:teste")},
 			want:    nil,
 			wantErr: fmt.Errorf("invalid dictionary format"),
 		},
 		{
 			name:    "Dict with List Decode",
-			args:    args{data: []byte("d3:barli1ei2ei3ee3:foo4:spam3:spaml4:eggse")},
+			args:    args{data: []byte("d3:barli1ei2ei3ee3:foo4:spam4:spaml4:eggse")},
 			want:    map[string]interface{}{"bar": []interface{}{int64(1), int64(2), int64(3)}, "foo": []byte("spam"), "spam": []interface{}{[]byte("eggs")}},
 			wantErr: nil,
 		},
 		{
 			name:    "Dict with Nested List Decode",
-			args:    args{data: []byte("d3:barlli1ei2eei3ee3:foo4:spam3:spaml4:eggse")},
+			args:    args{data: []byte("d3:barlli1ei2eei3ee3:foo4:spam4:spaml4:eggse")},
 			want:    map[string]interface{}{"bar": []interface{}{[]interface{}{int64(1), int64(2)}, int64(3)}, "foo": []byte("spam"), "spam": []interface{}{[]byte("eggs")}},
 			wantErr: nil,
 		},
@@ -205,7 +205,7 @@ func TestSimpleBencoder_Decode(t *testing.T) {
 		},
 		{
 			name: "Full Torrent File Decode",
-			args: args{data: []byte("d8:announce13:http://tracker3:foo5:helloi42e4:infod5:filesld6:lengthi12345e4:pathl8:filenameee4:name9:testfile12:piece lengthi16384e6:pieces20:12345678901234567890ee")},
+			args: args{data: []byte("d8:announce14:http://tracker3:foo5:hello4:infod5:filesld6:lengthi12345e4:pathl8:filenameeee4:name8:testfile12:piece lengthi16384e6:pieces20:12345678901234567890ee")},
 			want: map[string]interface{}{
 				"announce": []byte("http://tracker"),
 				"foo":      []byte("hello"),
