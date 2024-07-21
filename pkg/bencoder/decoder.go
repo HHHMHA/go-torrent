@@ -22,7 +22,7 @@ func getDecoder(data []byte) func([]byte) (interface{}, error) {
 	return decodeString
 }
 
-func decodeIntInList(data []byte, startIndex int) (int, interface{}, error) {
+func decodeNestedInt(data []byte, startIndex int) (int, interface{}, error) {
 	if len(data) <= 3 || data[startIndex] != 'i' {
 		return 0, nil, fmt.Errorf("invalid integer format: %s", string(data))
 	}
@@ -47,12 +47,11 @@ func decodeInt(data []byte) (interface{}, error) {
 }
 
 func decodeString(data []byte) (interface{}, error) {
-	_, result, err := decodeStringInList(data, 0)
+	_, result, err := decodeNestedString(data, 0)
 	if err != nil {
 		return nil, err
 	}
 
-	// TODO: Assuming ascii for now, handle UTF-8 later
 	lengthPart, err := strconv.Atoi(string(data[0 : len(data)-len(result)-1]))
 	if err != nil || lengthPart != len(result) {
 		return nil, errors.New("mismatch of length and byte string")
@@ -61,7 +60,7 @@ func decodeString(data []byte) (interface{}, error) {
 	return result, nil
 }
 
-func decodeStringInList(data []byte, startIndex int) (int, []byte, error) {
+func decodeNestedString(data []byte, startIndex int) (int, []byte, error) {
 	// It's byte string not normal string so we will return the bytes
 	// Very handy too since the piece hash is in bytes
 	separator := []byte(":")
@@ -75,7 +74,6 @@ func decodeStringInList(data []byte, startIndex int) (int, []byte, error) {
 		return 0, nil, errors.New("length of string is not correct")
 	}
 
-	// TODO: Assuming ascii for now, handle UTF-8 later
 	if length > len(stringBytes) {
 		return 0, nil, errors.New("mismatch of length and byte string")
 	}
@@ -87,11 +85,11 @@ func decodeStringInList(data []byte, startIndex int) (int, []byte, error) {
 }
 
 func decodeList(data []byte) (interface{}, error) {
-	_, result, err := decodeListInner(data, 0)
+	_, result, err := decodeNestedList(data, 0)
 	return result, err
 }
 
-func decodeListInner(data []byte, startIndex int) (nextIndex int, result interface{}, err error) {
+func decodeNestedList(data []byte, startIndex int) (nextIndex int, result interface{}, err error) {
 	result = []interface{}{}
 	err = fmt.Errorf("list element format invalid")
 	nextIndex = startIndex + 1 // skip the first l
@@ -104,38 +102,10 @@ func decodeListInner(data []byte, startIndex int) (nextIndex int, result interfa
 	var innerErr error
 
 	for data[nextIndex] != byte('e') {
-		decoderFunc := getDecoder(data[nextIndex : nextIndex+1])
-		switch reflect.ValueOf(decoderFunc).Pointer() {
-		case reflect.ValueOf(decodeInt).Pointer():
-			nextIndex, element, innerErr = decodeIntInList(data, nextIndex)
-			if innerErr != nil {
-				result = nil
-				return
-			}
-		case reflect.ValueOf(decodeString).Pointer():
-			nextIndex, element, innerErr = decodeStringInList(data[nextIndex:], nextIndex)
-			if innerErr != nil {
-				result = nil
-				return
-			}
-		case reflect.ValueOf(decodeList).Pointer():
-			nextIndex, element, innerErr = decodeListInner(data, nextIndex)
-			if innerErr != nil {
-				result = nil
-				return
-			}
-			if nextIndex < len(data)-1 {
-				nextIndex += 1 // skip the e for next decode
-			}
-		case reflect.ValueOf(decodeDict).Pointer():
-			nextIndex, element, innerErr = decodeDictInner(data, nextIndex)
-			if innerErr != nil {
-				result = nil
-				return
-			}
-			if nextIndex < len(data)-1 {
-				nextIndex += 1 // skip the e for next decode
-			}
+		nextIndex, element, innerErr = decodeNestedElement(data, nextIndex)
+		if innerErr != nil {
+			result = nil
+			return
 		}
 		result = append(result.([]interface{}), element)
 		if nextIndex >= len(data) {
@@ -150,11 +120,11 @@ func decodeListInner(data []byte, startIndex int) (nextIndex int, result interfa
 }
 
 func decodeDict(data []byte) (interface{}, error) {
-	_, result, err := decodeDictInner(data, 0)
+	_, result, err := decodeNestedDict(data, 0)
 	return result, err
 }
 
-func decodeDictInner(data []byte, startIndex int) (nextIndex int, result interface{}, err error) {
+func decodeNestedDict(data []byte, startIndex int) (nextIndex int, result interface{}, err error) {
 	result = map[string]interface{}{}
 	err = fmt.Errorf("invalid dictionary format")
 	nextIndex = startIndex + 1 // skip the first d
@@ -169,7 +139,7 @@ func decodeDictInner(data []byte, startIndex int) (nextIndex int, result interfa
 
 	for data[nextIndex] != byte('e') {
 		// first extract the key and move the index after the extracted key string
-		nextIndex, key, innerErr = decodeStringInList(data[nextIndex:], nextIndex)
+		nextIndex, key, innerErr = decodeNestedString(data[nextIndex:], nextIndex)
 		if innerErr != nil || len(data) < nextIndex {
 			result = nil
 			return
@@ -179,38 +149,10 @@ func decodeDictInner(data []byte, startIndex int) (nextIndex int, result interfa
 			return
 		}
 		// now get the value
-		decoderFunc := getDecoder(data[nextIndex : nextIndex+1])
-		switch reflect.ValueOf(decoderFunc).Pointer() {
-		case reflect.ValueOf(decodeInt).Pointer():
-			nextIndex, element, innerErr = decodeIntInList(data, nextIndex)
-			if innerErr != nil {
-				result = nil
-				return
-			}
-		case reflect.ValueOf(decodeString).Pointer():
-			nextIndex, element, innerErr = decodeStringInList(data[nextIndex:], nextIndex)
-			if innerErr != nil {
-				result = nil
-				return
-			}
-		case reflect.ValueOf(decodeList).Pointer():
-			nextIndex, element, innerErr = decodeListInner(data, nextIndex)
-			if innerErr != nil {
-				result = nil
-				return
-			}
-			if nextIndex < len(data)-1 {
-				nextIndex += 1 // skip the e for next decode
-			}
-		case reflect.ValueOf(decodeDict).Pointer():
-			nextIndex, element, innerErr = decodeDictInner(data, nextIndex)
-			if innerErr != nil {
-				result = nil
-				return
-			}
-			if nextIndex < len(data)-1 {
-				nextIndex += 1 // skip the e for next decode
-			}
+		nextIndex, element, innerErr = decodeNestedElement(data, nextIndex)
+		if innerErr != nil {
+			result = nil
+			return
 		}
 		result.(map[string]interface{})[string(key)] = element
 		if nextIndex >= len(data) {
@@ -220,5 +162,38 @@ func decodeDictInner(data []byte, startIndex int) (nextIndex int, result interfa
 	}
 
 	err = nil
+	return
+}
+
+func decodeNestedElement(data []byte, index int) (nextIndex int, element any, err error) {
+	decoderFunc := getDecoder(data[index : index+1])
+	switch reflect.ValueOf(decoderFunc).Pointer() {
+	case reflect.ValueOf(decodeInt).Pointer():
+		nextIndex, element, err = decodeNestedInt(data, index)
+		if err != nil {
+			return
+		}
+	case reflect.ValueOf(decodeString).Pointer():
+		nextIndex, element, err = decodeNestedString(data[index:], index)
+		if err != nil {
+			return
+		}
+	case reflect.ValueOf(decodeList).Pointer():
+		nextIndex, element, err = decodeNestedList(data, index)
+		if err != nil {
+			return
+		}
+		if nextIndex < len(data)-1 {
+			nextIndex += 1 // skip the e for next decode
+		}
+	case reflect.ValueOf(decodeDict).Pointer():
+		nextIndex, element, err = decodeNestedDict(data, index)
+		if err != nil {
+			return
+		}
+		if nextIndex < len(data)-1 {
+			nextIndex += 1 // skip the e for next decode
+		}
+	}
 	return
 }
