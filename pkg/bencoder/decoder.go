@@ -115,6 +115,7 @@ func decodeNestedList(data []byte, startIndex int) (nextIndex int, result interf
 		}
 	}
 
+	nextIndex += 1 // skip the last e
 	err = nil
 	return
 }
@@ -161,6 +162,7 @@ func decodeNestedDict(data []byte, startIndex int) (nextIndex int, result interf
 		}
 	}
 
+	nextIndex += 1 // skip the last e
 	err = nil
 	return
 }
@@ -183,16 +185,10 @@ func decodeNestedElement(data []byte, index int) (nextIndex int, element any, er
 		if err != nil {
 			return
 		}
-		if nextIndex < len(data)-1 {
-			nextIndex += 1 // skip the e for next decode
-		}
 	case reflect.ValueOf(decodeDict).Pointer():
 		nextIndex, element, err = decodeNestedDict(data, index)
 		if err != nil {
 			return
-		}
-		if nextIndex < len(data)-1 {
-			nextIndex += 1 // skip the e for next decode
 		}
 	}
 	return

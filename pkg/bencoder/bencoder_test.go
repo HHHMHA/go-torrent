@@ -181,13 +181,19 @@ func TestSimpleBencoder_Decode(t *testing.T) {
 		},
 		{
 			name:    "Dict with List Decode",
-			args:    args{data: []byte("d3:barli1ei2ei3ee3:foo4:spam4:spaml4:eggse")},
+			args:    args{data: []byte("d3:barli1ei2ei3ee3:foo4:spam4:spaml4:eggsee")},
 			want:    map[string]interface{}{"bar": []interface{}{int64(1), int64(2), int64(3)}, "foo": []byte("spam"), "spam": []interface{}{[]byte("eggs")}},
 			wantErr: nil,
 		},
 		{
+			name:    "Dict with List Decode Invalid End",
+			args:    args{data: []byte("d3:barli1ei2ei3ee3:foo4:spam4:spaml4:eggse")},
+			want:    nil,
+			wantErr: fmt.Errorf("invalid dictionary format"),
+		},
+		{
 			name:    "Dict with Nested List Decode",
-			args:    args{data: []byte("d3:barlli1ei2eei3ee3:foo4:spam4:spaml4:eggse")},
+			args:    args{data: []byte("d3:barlli1ei2eei3ee3:foo4:spam4:spaml4:eggsee")},
 			want:    map[string]interface{}{"bar": []interface{}{[]interface{}{int64(1), int64(2)}, int64(3)}, "foo": []byte("spam"), "spam": []interface{}{[]byte("eggs")}},
 			wantErr: nil,
 		},
