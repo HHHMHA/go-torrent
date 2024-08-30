@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha1"
 	"errors"
+	"fmt"
 	"reflect"
 	"torrent/pkg/bencoder"
 )
@@ -98,26 +99,62 @@ func setField(obj interface{}, name string, value interface{}) error {
 			}
 			fieldValue.Set(reflect.ValueOf(newStruct).Elem())
 		} else if fieldValue.Kind() == reflect.Slice && val.Kind() == reflect.Slice {
-			// Handle slices of slices (AnnounceList) and slices of structs (Files)
-			if fieldValue.Type().Elem().Kind() == reflect.Slice && val.Type().Elem().Kind() == reflect.Slice {
+			// Handle slice of int64
+			if fieldValue.Type().Elem().Kind() == reflect.Int64 && val.Type().Elem().Kind() == reflect.Int64 {
 				fieldValue.Set(reflect.ValueOf(value))
-			} else if fieldValue.Type().Elem().Kind() == reflect.Struct && val.Len() > 0 && val.Index(0).Elem().Kind() == reflect.Map {
-				slice := reflect.MakeSlice(fieldValue.Type(), val.Len(), val.Len())
-				for j := 0; j < val.Len(); j++ {
-					elem := reflect.New(fieldValue.Type().Elem()).Interface()
-					for k, v := range val.Index(j).Interface().(map[string]interface{}) {
-						if err := setField(elem, k, v); err != nil {
-							return err
-						}
-					}
-					slice.Index(j).Set(reflect.ValueOf(elem).Elem())
+			} else {
+				// Use the new setSlice method to handle complex slice assignments
+				if err := setSlice(fieldValue, val); err != nil {
+					return err
 				}
-				fieldValue.Set(slice)
 			}
 		} else {
 			return errors.New("type mismatch for field " + name)
 		}
 		return nil
 	}
+	return nil
+}
+
+func setSlice(target reflect.Value, source reflect.Value) error {
+	if target.Kind() != reflect.Slice || source.Kind() != reflect.Slice {
+		return fmt.Errorf("target and source must be slices")
+	}
+
+	// Create a new slice with the same type and length as the target
+	newSlice := reflect.MakeSlice(target.Type(), source.Len(), source.Len())
+
+	for i := 0; i < source.Len(); i++ {
+		elem := source.Index(i)
+		targetElem := newSlice.Index(i)
+
+		// Check if the element is a slice itself
+		if (target.Type().Elem().Kind() == reflect.Slice) && (elem.Elem().Type().Elem().Kind() == reflect.Uint8) {
+			// Recursively handle slices of slices
+			if err := setSlice(targetElem, elem.Elem()); err != nil {
+				return err
+			}
+			if target.Type().Elem().Kind() == reflect.String && elem.Elem().Type().Elem().Kind() == reflect.Uint8 {
+				targetElem.Set(reflect.ValueOf(string(elem.Elem().Bytes())))
+			}
+		} else if target.Type().Elem().Kind() == reflect.Int64 && elem.Kind() == reflect.Int64 {
+			targetElem.Set(reflect.ValueOf(elem))
+		} else if target.Type().Elem().Kind() == reflect.Struct && elem.Elem().Kind() == reflect.Map {
+			// Recursively handle slices of maps converting them to structs
+			newElem := reflect.New(target.Type().Elem()).Elem()
+			for k, v := range elem.Interface().(map[string]interface{}) {
+				if err := setField(newElem.Addr().Interface(), k, v); err != nil {
+					return err
+				}
+			}
+			targetElem.Set(newElem)
+		} else {
+			// Handle other cases directly
+			targetElem.Set(elem)
+		}
+	}
+
+	// Set the final slice value to the target
+	target.Set(newSlice)
 	return nil
 }
