@@ -298,3 +298,25 @@ func TestSimpleBencoder_Encode(t *testing.T) {
 		})
 	}
 }
+
+func TestSimpleBencoder_Unmarshal(t *testing.T) {
+	type args struct {
+		data   []byte
+		target interface{}
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bencoder := &SimpleBencoder{}
+			if err := bencoder.Unmarshal(tt.args.data, tt.args.target); (err != nil) != tt.wantErr {
+				t.Errorf("Unmarshal() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}

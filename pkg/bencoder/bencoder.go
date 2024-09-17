@@ -41,12 +41,12 @@ func (bencoder *SimpleBencoder) Unmarshal(data []byte, target interface{}) error
 		return err
 	}
 
-	mappedTorrent, ok := decodedData.(map[string]interface{})
+	mappedData, ok := decodedData.(map[string]interface{})
 	if !ok {
 		return errors.New("failed to cast decoded data to map")
 	}
 
-	for key, value := range mappedTorrent {
+	for key, value := range mappedData {
 		if err := setField(target, key, value); err != nil {
 			return err
 		}

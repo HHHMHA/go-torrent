@@ -22,70 +22,83 @@ func setField(obj interface{}, name string, value interface{}) error {
 		}
 
 		val := reflect.ValueOf(value)
-		if fieldValue.Kind() == val.Kind() && fieldValue.Kind() != reflect.Slice { // slices needs special handling
-			fieldValue.Set(val)
-		} else if fieldValue.Kind() == reflect.String && val.Kind() == reflect.SliceOf(reflect.TypeOf(byte(1))).Kind() {
-			fieldValue.Set(reflect.ValueOf(string(val.Bytes())))
-		} else if fieldValue.Kind() == reflect.Struct && val.Kind() == reflect.Map {
-			// Handle nested structs like InfoDict
-			newStruct := reflect.New(fieldValue.Type()).Interface()
-			for k, v := range value.(map[string]interface{}) {
-				if err := setField(newStruct, k, v); err != nil {
-					return err
-				}
-			}
-			fieldValue.Set(reflect.ValueOf(newStruct).Elem())
-		} else if fieldValue.Kind() == reflect.Slice && val.Kind() == reflect.Slice {
-			// Use the new setSlice method to handle complex slice assignments
-			if err := setSlice(fieldValue, val); err != nil {
-				return err
-			}
-		} else {
-			return errors.New("type mismatch for field " + name)
+		if err := assignValue(fieldValue, val); err != nil {
+			return err
 		}
 		return nil
 	}
 	return nil
 }
 
-func setSlice(target reflect.Value, value reflect.Value) error {
-	if target.Kind() != reflect.Slice || value.Kind() != reflect.Slice {
-		return fmt.Errorf("target and value must be slices")
+// assignValue handles the assignment of values based on their types.
+func assignValue(target reflect.Value, value reflect.Value) error {
+	if target.Kind() == value.Kind() && target.Kind() != reflect.Slice {
+		target.Set(value)
+		return nil
 	}
 
-	// Create a new slice with the same type and length as the target
+	// Handle specific type conversions
+	switch target.Kind() {
+	case reflect.String:
+		if isByteSlice(value) {
+			target.SetString(string(value.Bytes()))
+			return nil
+		}
+	case reflect.Struct:
+		if value.Kind() == reflect.Map {
+			return assignStruct(target, value)
+		}
+	case reflect.Slice:
+		if value.Kind() == reflect.Slice {
+			return assignSlice(target, value)
+		}
+	}
+
+	return fmt.Errorf("type mismatch for field %v", target.Type().Name())
+}
+
+// isByteSlice checks if a reflect.Value is a slice of bytes.
+func isByteSlice(value reflect.Value) bool {
+	return value.Kind() == reflect.Slice && value.Type().Elem().Kind() == reflect.Uint8
+}
+
+// assignStruct assigns a map's values to a struct's fields recursively.
+func assignStruct(target reflect.Value, value reflect.Value) error {
+	newStruct := reflect.New(target.Type()).Interface()
+	for k, v := range value.Interface().(map[string]interface{}) {
+		if err := setField(newStruct, k, v); err != nil {
+			return err
+		}
+	}
+	target.Set(reflect.ValueOf(newStruct).Elem())
+	return nil
+}
+
+// assignSlice handles complex slice assignments.
+func assignSlice(target reflect.Value, value reflect.Value) error {
 	newSlice := reflect.MakeSlice(target.Type(), value.Len(), value.Len())
 
 	for i := 0; i < value.Len(); i++ {
 		elem := reflect.ValueOf(value.Index(i).Interface())
 		targetElem := newSlice.Index(i)
 
-		// Check if the element is a slice itself
-		if (target.Type().Elem().Kind() == reflect.Slice) && (elem.Kind() == reflect.Slice) {
+		if targetElem.Kind() == reflect.Slice && elem.Kind() == reflect.Slice {
 			// Recursively handle slices of slices
-			if err := setSlice(targetElem, elem); err != nil {
+			if err := assignSlice(targetElem, elem); err != nil {
 				return err
 			}
-		} else if target.Type().Elem().Kind() == reflect.String && elem.Kind() == reflect.SliceOf(reflect.TypeOf(byte(1))).Kind() {
-			targetElem.Set(reflect.ValueOf(string(elem.Bytes())))
-		} else if target.Type().Elem().Kind() == reflect.Int64 && elem.Kind() == reflect.Int64 {
-			targetElem.Set(reflect.ValueOf(elem))
-		} else if target.Type().Elem().Kind() == reflect.Struct && elem.Kind() == reflect.Map {
-			// Recursively handle slices of maps converting them to structs
-			newElem := reflect.New(target.Type().Elem()).Elem()
-			for k, v := range elem.Interface().(map[string]interface{}) {
-				if err := setField(newElem.Addr().Interface(), k, v); err != nil {
-					return err
-				}
+		} else if targetElem.Kind() == reflect.Struct && elem.Kind() == reflect.Map {
+			// Convert map to struct (for cases like []File)
+			if err := assignStruct(targetElem, elem); err != nil {
+				return err
 			}
-			targetElem.Set(newElem)
 		} else {
-			// Handle other cases directly
-			targetElem.Set(elem)
+			if err := assignValue(targetElem, elem); err != nil {
+				return err
+			}
 		}
 	}
 
-	// Set the final slice value to the target
 	target.Set(newSlice)
 	return nil
 }
