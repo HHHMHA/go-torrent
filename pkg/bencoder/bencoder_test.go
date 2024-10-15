@@ -304,18 +304,98 @@ func TestSimpleBencoder_Unmarshal(t *testing.T) {
 		data   []byte
 		target interface{}
 	}
+
 	tests := []struct {
 		name    string
 		args    args
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+		{
+			name: "Unmarshal int",
+			args: args{
+				data: []byte("d3:fooi123ee"), // Bencode for {"foo": 123}
+				target: new(struct {
+					Foo int64 `bencode:"foo"`
+				}),
+			},
+			wantErr: false,
+		},
+		{
+			name: "Unmarshal string",
+			args: args{
+				data: []byte("d3:foo4:spamee"), // Bencode for {"foo": "spam"}
+				target: new(struct {
+					Foo string `bencode:"foo"`
+				}),
+			},
+			wantErr: false,
+		},
+		{
+			name: "Unmarshal slice of strings",
+			args: args{
+				data: []byte("d6:valuesl4:spam4:eggs4:testee"), // Bencode for {"values": ["spam", "eggs", "test"]}
+				target: new(struct {
+					Values []string `bencode:"values"`
+				}),
+			},
+			wantErr: false,
+		},
+		{
+			name: "Unmarshal slice of slices",
+			args: args{
+				data: []byte("d6:valuesll4:spam4:eggseee"), // Bencode for {"values": [["spam", "eggs"], []]}
+				target: new(struct {
+					Values [][]string `bencode:"values"`
+				}),
+			},
+			wantErr: false,
+		},
+		{
+			name: "Unmarshal map of slices",
+			args: args{
+				data: []byte("d5:filesld4:name8:filenameed4:name7:filetwoeee"), // Bencode for {"files": [{"name": "filename"}, {"name": "filetwo"}]}
+				target: new(struct {
+					Files []struct {
+						Name string `bencode:"name"`
+					} `bencode:"files"`
+				}),
+			},
+			wantErr: false,
+		},
+		{
+			name: "Unmarshal nested structs",
+			args: args{
+				data: []byte("d4:userd4:name4:John3:agei30eee"), // Bencode for {"user": {"name": "John", "age": 30}}
+				target: new(struct {
+					User struct {
+						Name string `bencode:"name"`
+						Age  int64  `bencode:"age"`
+					} `bencode:"user"`
+				}),
+			},
+			wantErr: false,
+		},
+		{
+			name: "Unmarshal invalid data",
+			args: args{
+				data: []byte("d3:foo4:bari3:100ee"), // Incorrect bencode
+				target: new(struct {
+					Foo string `bencode:"foo"`
+				}),
+			},
+			wantErr: true, // Expecting an error due to incorrect bencode
+		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bencoder := &SimpleBencoder{}
 			if err := bencoder.Unmarshal(tt.args.data, tt.args.target); (err != nil) != tt.wantErr {
 				t.Errorf("Unmarshal() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			// Optionally, check the values of the target struct after unmarshalling
+			if !tt.wantErr && !reflect.DeepEqual(tt.args.target, tt.args.target) {
+				t.Errorf("Unmarshal() got = %v, want = %v", tt.args.target, tt.args.target)
 			}
 		})
 	}
