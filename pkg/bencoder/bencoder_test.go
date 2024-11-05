@@ -282,7 +282,89 @@ func TestSimpleBencoder_Encode(t *testing.T) {
 		want    []byte
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+		{
+			name:    "Empty Encode",
+			args:    args{data: nil},
+			want:    []byte(""),
+			wantErr: true,
+		},
+		{
+			name:    "Integer Encode",
+			args:    args{data: int64(128)},
+			want:    []byte("i128e"),
+			wantErr: false,
+		},
+		{
+			name:    "String Encode",
+			args:    args{data: []byte("spam")},
+			want:    []byte("4:spam"),
+			wantErr: false,
+		},
+		{
+			name:    "Empty List Encode",
+			args:    args{data: []interface{}{}},
+			want:    []byte("le"),
+			wantErr: false,
+		},
+		{
+			name:    "List of Integers Encode",
+			args:    args{data: []interface{}{int64(1), int64(2), int64(3)}},
+			want:    []byte("li1ei2ei3ee"),
+			wantErr: false,
+		},
+		{
+			name:    "List of Strings Encode",
+			args:    args{data: []interface{}{[]byte("spam"), []byte("eggs")}},
+			want:    []byte("l4:spam4:eggse"),
+			wantErr: false,
+		},
+		{
+			name: "Nested List Encode",
+			args: args{data: []interface{}{
+				[]interface{}{[]byte("spam"), []byte("eggs")},
+				int64(1), []byte("spam"), int64(2),
+			}},
+			want:    []byte("ll4:spam4:eggsei1e4:spami2ee"),
+			wantErr: false,
+		},
+		{
+			name:    "List with Dict Encode",
+			args:    args{data: []interface{}{map[string]interface{}{"bar": []byte("spam"), "foo": int64(42)}}},
+			want:    []byte("ld3:bar4:spam3:fooi42eee"),
+			wantErr: false,
+		},
+		{
+			name:    "Nested Dict Encode",
+			args:    args{data: map[string]interface{}{"bar": []byte("spam"), "foo": map[string]interface{}{"bar": int64(42)}}},
+			want:    []byte("d3:bar4:spam3:food3:bari42eee"),
+			wantErr: false,
+		},
+		{
+			name:    "Dict with List Encode",
+			args:    args{data: map[string]interface{}{"bar": []interface{}{int64(1), int64(2), int64(3)}, "foo": []byte("spam"), "spam": []interface{}{[]byte("eggs")}}},
+			want:    []byte("d3:barli1ei2ei3ee3:foo4:spam4:spaml4:eggsee"),
+			wantErr: false,
+		},
+		{
+			name: "Full Torrent File Encode",
+			args: args{data: map[string]interface{}{
+				"announce": []byte("http://tracker"),
+				"foo":      []byte("hello"),
+				"info": map[string]interface{}{
+					"files": []interface{}{
+						map[string]interface{}{
+							"length": int64(12345),
+							"path":   []interface{}{[]byte("filename")},
+						},
+					},
+					"name":         []byte("testfile"),
+					"piece length": int64(16384),
+					"pieces":       []byte("12345678901234567890"),
+				},
+			}},
+			want:    []byte("d8:announce14:http://tracker3:foo5:hello4:infod5:filesld6:lengthi12345e4:pathl8:filenameeee4:name8:testfile12:piece lengthi16384e6:pieces20:12345678901234567890ee"),
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
