@@ -285,7 +285,7 @@ func TestSimpleBencoder_Encode(t *testing.T) {
 		{
 			name:    "Empty Encode",
 			args:    args{data: nil},
-			want:    []byte(""),
+			want:    nil,
 			wantErr: true,
 		},
 		{
