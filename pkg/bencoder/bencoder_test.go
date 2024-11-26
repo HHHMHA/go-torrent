@@ -296,8 +296,20 @@ func TestSimpleBencoder_Encode(t *testing.T) {
 		},
 		{
 			name:    "String Encode",
+			args:    args{data: "spam"},
+			want:    []byte("4:spam"),
+			wantErr: false,
+		},
+		{
+			name:    "String Encode Array",
 			args:    args{data: []byte("spam")},
 			want:    []byte("4:spam"),
+			wantErr: false,
+		},
+		{
+			name:    "Empty String",
+			args:    args{data: []byte("")},
+			want:    []byte("0:"),
 			wantErr: false,
 		},
 		{
