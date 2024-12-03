@@ -27,7 +27,7 @@ func (bencoder *SimpleBencoder) Decode(data []byte) (interface{}, error) {
 }
 
 func (bencoder *SimpleBencoder) Encode(data interface{}) ([]byte, error) {
-	return decode(data)
+	return encode(data)
 }
 
 func (bencoder *SimpleBencoder) Unmarshal(data []byte, target interface{}) error {

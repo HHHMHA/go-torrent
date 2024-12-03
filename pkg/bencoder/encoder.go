@@ -6,7 +6,7 @@ import (
 	"reflect"
 )
 
-func decode(data interface{}) ([]byte, error) {
+func encode(data interface{}) ([]byte, error) {
 	if data == nil {
 		return nil, errors.New("no data to encode")
 	}
@@ -14,11 +14,18 @@ func decode(data interface{}) ([]byte, error) {
 	switch dataType {
 	case reflect.Int, reflect.Int64:
 		return encodeInt(data)
-	case reflect.String, reflect.SliceOf(reflect.TypeOf(byte('a'))).Kind(): // TODO: probably should change and make it normal list?
+	case reflect.String:
 		return encodeString(data)
+	case reflect.Slice:
+		if reflect.TypeOf(data) == reflect.TypeOf([]byte(nil)) {
+			return encodeString(data)
+		}
+		return encodeList(data)
+	case reflect.Array:
+		return encodeList(data)
 	}
 
-	return nil, nil
+	return nil, errors.New("unsupported type")
 }
 
 func encodeInt(data interface{}) ([]byte, error) {
@@ -47,4 +54,24 @@ func encodeString(data interface{}) ([]byte, error) {
 		return nil, errors.New("invalid string provided")
 	}
 	return []byte(fmt.Sprintf("%d:%s", len(value), value)), nil
+}
+
+func encodeList(data interface{}) ([]byte, error) {
+	if reflect.TypeOf(data).Kind() != reflect.Slice {
+		return nil, errors.New("input data is not a list")
+	}
+	var result []byte
+	result = append(result, 'l') // Start with 'l'
+	s := reflect.ValueOf(data)
+
+	for i := 0; i < s.Len(); i++ {
+		elem := s.Index(i).Interface()
+		encodedElem, err := encode(elem)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, encodedElem...)
+	}
+	result = append(result, 'e') // End with 'e'
+	return result, nil
 }
