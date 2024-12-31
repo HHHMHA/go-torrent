@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"sort"
 )
 
 func encode(data interface{}) ([]byte, error) {
@@ -23,6 +24,8 @@ func encode(data interface{}) ([]byte, error) {
 		return encodeList(data)
 	case reflect.Array:
 		return encodeList(data)
+	case reflect.Map:
+		return encodeDict(data)
 	}
 
 	return nil, errors.New("unsupported type")
@@ -72,6 +75,44 @@ func encodeList(data interface{}) ([]byte, error) {
 		}
 		result = append(result, encodedElem...)
 	}
+	result = append(result, 'e') // End with 'e'
+	return result, nil
+}
+
+func encodeDict(data interface{}) ([]byte, error) {
+	if reflect.TypeOf(data).Kind() != reflect.Map {
+		return nil, errors.New("input data is not a map")
+	}
+
+	mappedData, ok := data.(map[string]interface{})
+	if !ok {
+		return nil, errors.New("input data is not a map with string keys")
+	}
+
+	var result []byte
+	result = append(result, 'd') // Start with 'd'
+
+	keys := make([]string, 0, len(mappedData))
+	for key := range mappedData {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys) // Sort keys lexicographically
+
+	// Encode each key-value pair in sorted order
+	for _, key := range keys {
+		encodedKey, err := encodeString(key)
+		if err != nil {
+			return nil, fmt.Errorf("failed to encode key '%s': %w", key, err)
+		}
+		result = append(result, encodedKey...)
+
+		encodedValue, err := encode(mappedData[key])
+		if err != nil {
+			return nil, fmt.Errorf("failed to encode value for key '%s': %w", key, err)
+		}
+		result = append(result, encodedValue...)
+	}
+
 	result = append(result, 'e') // End with 'e'
 	return result, nil
 }

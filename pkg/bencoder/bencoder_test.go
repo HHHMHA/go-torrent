@@ -346,6 +346,18 @@ func TestSimpleBencoder_Encode(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name:    "Empty Dict Encode",
+			args:    args{data: map[string]interface{}{}},
+			want:    []byte("de"),
+			wantErr: false,
+		},
+		{
+			name:    "Dict Encode",
+			args:    args{data: map[string]interface{}{"key": "value"}},
+			want:    []byte("d3:key5:valuee"),
+			wantErr: false,
+		},
+		{
 			name:    "Nested Dict Encode",
 			args:    args{data: map[string]interface{}{"bar": []byte("spam"), "foo": map[string]interface{}{"bar": int64(42)}}},
 			want:    []byte("d3:bar4:spam3:food3:bari42eee"),
