@@ -506,3 +506,127 @@ func TestSimpleBencoder_Unmarshal(t *testing.T) {
 		})
 	}
 }
+
+func TestSimpleBencoder_Marshal(t *testing.T) {
+	type args struct {
+		target interface{}
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    []byte
+		wantErr bool
+	}{
+		{
+			name: "Marshal int",
+			args: args{
+				target: struct {
+					Foo int64 `bencode:"foo"`
+				}{
+					Foo: 123,
+				},
+			},
+			want:    []byte("d3:fooi123ee"),
+			wantErr: false,
+		},
+		{
+			name: "Marshal string",
+			args: args{
+				target: struct {
+					Foo string `bencode:"foo"`
+				}{
+					Foo: "spam",
+				},
+			},
+			want:    []byte("d3:foo4:spame"),
+			wantErr: false,
+		},
+		{
+			name: "Marshal slice of strings",
+			args: args{
+				target: struct {
+					Values []string `bencode:"values"`
+				}{
+					Values: []string{"spam", "eggs", "test"},
+				},
+			},
+			want:    []byte("d6:valuesl4:spam4:eggs4:testee"),
+			wantErr: false,
+		},
+		{
+			name: "Marshal slice of slices",
+			args: args{
+				target: struct {
+					Values [][]string `bencode:"values"`
+				}{
+					Values: [][]string{{"spam", "eggs"}, {}},
+				},
+			},
+			want:    []byte("d6:valuesll4:spam4:eggseleee"),
+			wantErr: false,
+		},
+		{
+			name: "Marshal map of slices",
+			args: args{
+				target: struct {
+					Files []struct {
+						Name string `bencode:"name"`
+					} `bencode:"files"`
+				}{
+					Files: []struct {
+						Name string `bencode:"name"`
+					}{
+						{Name: "filename"},
+						{Name: "filetwo"},
+					},
+				},
+			},
+			want:    []byte("d5:filesld4:name8:filenameed4:name7:filetwoeee"),
+			wantErr: false,
+		},
+		{
+			name: "Marshal nested structs",
+			args: args{
+				target: struct {
+					User struct {
+						Name string `bencode:"name"`
+						Age  int64  `bencode:"age"`
+					} `bencode:"user"`
+				}{
+					User: struct {
+						Name string `bencode:"name"`
+						Age  int64  `bencode:"age"`
+					}{
+						Name: "John",
+						Age:  30,
+					},
+				},
+			},
+			want:    []byte("d4:userd3:agei30e4:name4:Johnee"),
+			wantErr: false,
+		},
+		{
+			name: "Marshal invalid target",
+			args: args{
+				target: 123,
+			},
+			want:    nil,
+			wantErr: true, // Expecting an error due to invalid target
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bencoder := &SimpleBencoder{}
+			got, err := bencoder.Marshal(tt.args.target)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Marshal() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Marshal() got = %v, want %v", got, tt.want)
+				t.Errorf("Marshal() got = %v, want %v", string(got), string(tt.want))
+			}
+		})
+	}
+}

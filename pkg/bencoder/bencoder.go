@@ -9,6 +9,7 @@ type Bencoder interface {
 	Decode(data []byte) (interface{}, error)
 	Encode(data interface{}) ([]byte, error)
 	Unmarshal(data []byte, target interface{}) error
+	Marshal(target interface{}) ([]byte, error)
 }
 
 type SimpleBencoder struct{}
@@ -52,4 +53,13 @@ func (bencoder *SimpleBencoder) Unmarshal(data []byte, target interface{}) error
 	}
 
 	return nil
+}
+
+func (bencoder *SimpleBencoder) Marshal(target interface{}) ([]byte, error) {
+	mappedData, err := mapStructToMap(target)
+	if err != nil {
+		return nil, err
+	}
+
+	return bencoder.Encode(mappedData)
 }
