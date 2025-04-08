@@ -3,6 +3,8 @@ package torrent
 import (
 	"bytes"
 	"crypto/sha1"
+	"io"
+	"os"
 	"torrent/pkg/bencoder"
 )
 
@@ -48,4 +50,20 @@ func NewTorrentFromBencode(data []byte) (*TorrentFile, error) {
 		return nil, err
 	}
 	return &torrentFile, nil
+}
+
+func NewTorrentFromFile(filePath string) (*TorrentFile, error) {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, err
+	}
+	return NewTorrentFromBencode(data)
+}
+
+func NewTorrentFromReader(r io.Reader) (*TorrentFile, error) {
+	data, err := io.ReadAll(r)
+	if err != nil {
+		return nil, err
+	}
+	return NewTorrentFromBencode(data)
 }
