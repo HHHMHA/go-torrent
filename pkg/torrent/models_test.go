@@ -2,6 +2,7 @@ package torrent
 
 import (
 	"bytes"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"reflect"
@@ -146,4 +147,40 @@ func TestNewTorrentFromReader(t *testing.T) {
 	}
 
 	assertTorrentMatchesExpected(t, torrent)
+}
+
+func TestInfoHash(t *testing.T) {
+	info := InfoDict{
+		PieceLength: 16384,
+		Pieces:      []byte{}, // Normally this would be SHA-1 hashes
+		Name:        "testfile.txt",
+		Length:      1234,
+	}
+
+	tf := TorrentFile{
+		Announce: "http://tracker.example.com/announce",
+		Info:     info,
+	}
+
+	rawHash, hexHash, err := tf.InfoHash()
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+
+	if len(rawHash) != 20 {
+		t.Errorf("expected SHA-1 hash length of 20, got: %d", len(rawHash))
+	}
+
+	if len(hexHash) != 40 {
+		t.Errorf("expected hex-encoded SHA-1 length of 40, got: %d", len(hexHash))
+	}
+
+	// Optional: Confirm decoding hex gives back the same raw hash
+	decoded, err := hex.DecodeString(hexHash)
+	if err != nil {
+		t.Fatalf("failed to decode hex string: %v", err)
+	}
+	if string(decoded) != string(rawHash) {
+		t.Errorf("decoded hex hash does not match raw hash")
+	}
 }

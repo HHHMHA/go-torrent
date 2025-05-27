@@ -3,6 +3,7 @@ package torrent
 import (
 	"bytes"
 	"crypto/sha1"
+	"encoding/hex"
 	"io"
 	"os"
 	"torrent/pkg/bencoder"
@@ -66,4 +67,13 @@ func NewTorrentFromReader(r io.Reader) (*TorrentFile, error) {
 		return nil, err
 	}
 	return NewTorrentFromBencode(data)
+}
+
+func (t *TorrentFile) InfoHash() ([]byte, string, error) {
+	benc, err := bencoder.NewSimpleBencoder().Marshal(t.Info)
+	if err != nil {
+		return nil, "", err
+	}
+	hash := sha1.Sum(benc)
+	return hash[:], hex.EncodeToString(hash[:]), nil
 }
