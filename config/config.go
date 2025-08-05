@@ -8,6 +8,7 @@ import (
 
 type Config struct {
 	DefaultDownloadLocation string `mapstructure:"defaultDownloadLocation"`
+	PeerID                  string `mapstructure:"peerId"`
 }
 
 func LoadConfig(path string) (config Config, err error) {
@@ -31,5 +32,9 @@ func LoadConfig(path string) (config Config, err error) {
 	}
 
 	err = viper.Unmarshal(&config)
+
+	if len(config.PeerID) != 20 {
+		config.PeerID = "-GT0001-abcdef123456"
+	}
 	return
 }
